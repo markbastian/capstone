@@ -68,7 +68,8 @@ def model6(vocabulary_size, max_tweet_len):
     x = Dense(2, activation='softmax')(x)
     model = Model(input_layer, x)
     optimizer = Adam(lr=0.0003)
-    model.compile(loss='binary_crossentropy', optimizer=optimizer)
+    model.compile(loss='categorical_crossentropy', optimizer=optimizer)
+    #model.compile(loss='binary_crossentropy', optimizer=optimizer)
     return model
 
 
