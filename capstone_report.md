@@ -41,7 +41,7 @@ I used the Democrat Vs. Republican Tweets dataset [found here](https://www.kaggl
 
 This dataset provides 86,460 tweets divided roughly evenly (over 42,000 tweets per party) and is sufficiently large to produce sizeable testing and training sets. As the authors are all politicans it is implicitly categorized by the author's political affiliation.
 
-This was loaded using the following snippet:
+This was loaded using the following code:
 
 ```python
 categories = ['Democrat', 'Republican']
@@ -55,9 +55,10 @@ X_train, X_test, y_train, y_test = train_test_split(raw_tweets,
                                                     test_size=0.2,
                                                     random_state=42)
 ```
+The above code listing was used for all models.
 
 ### Exploratory Visualization
-As can be seen in the below image, the number of tweets is fairly evenly split between parties.
+As can be seen in the below image, the number of tweets is fairly evenly split between parties (Republican=44392, Democrat=42068).
 
 <img src="image1.png" alt="breakdown" width="400" class="center"/>
 
@@ -69,7 +70,7 @@ Futhermore, the number of original tweets is fairly high compared to the number 
 My intent for this project was two solve the problem using two categories of algorithms and compare the results. The first would be a Naive Bayes Classifier and the second would be a Neural Network. The specifics of the latter were left open in the proposal as there are a lot of different potential architectures and I wanted to investigate several. I ended up trying our several techniques, including word and character embedding layers, 1D convolutional networks, and LSTM layers.
 
 ### Benchmark
-My baseline model was a simple naive Bayes Classifier created using the following pipeline:
+My baseline model was a simple Naive Bayes Classifier created using the following pipeline:
 
 ```python
 model = Pipeline([('vect', CountVectorizer()), 
@@ -79,15 +80,55 @@ model = Pipeline([('vect', CountVectorizer()),
 
 As shown above, I used an 80/20 split to divide training and testing data for all experiments. 
 
+The baseline Naive Bayes Classifier produced accuracy, precision, recall, and f1 scores of 0.80, 0.77, 0.86, and 0.81, respectively, and is show graphically here:
+
+<img src="image3.png" alt="breakdown" width="400" class="center"/>
+
+The corresponding confusion matrix is shown here:
+
+<img src="image4.png" alt="breakdown" width="400" class="center"/>
+
+Since this is a fairly evenly split dataset and there is no preference for precsion or recall, accuracy is probably the most useful metric as we have an equal preference for correct classification into either class. The baseline accuracy is computed as total correctly classified items over the total population, that is (6276 + 7534) / (6276 + 7534 + 1252 + 2230), which is 80%.
 
 ## III. Methodology
-_(approx. 3-5 pages)_
+The goal of the remainder of this project was to compare the above model with several neural network architectures to see if the networks could be tuned to give better overall performance, with accuracy being the most interesting metric.
+
+The following networks were tried:
+1. A 1D Convolutional Network
+2. A 1D Convolutional Network with dropout layers added to prevent overfitting
+3. A Character Embedding Layer followed by a Convolutional Layer
+4. A Character Embedding Layer followed by two Convolutional Layers
+5. A Character Embedding Layer followed by three Convolutional Layers. This trial was meant to investigate if network depth did a better job of generalizing than network width.
 
 ### Data Preprocessing
-In this section, all of your preprocessing steps will need to be clearly documented, if any were necessary. From the previous section, any of the abnormalities or characteristics that you identified about the dataset will be addressed and corrected here. Questions to ask yourself when writing this section:
-- _If the algorithms chosen require preprocessing steps like feature selection or feature transformations, have they been properly documented?_
-- _Based on the **Data Exploration** section, if there were abnormalities or characteristics that needed to be addressed, have they been properly corrected?_
-- _If no preprocessing is needed, has it been made clear why?_
+For all character-level encodings, the following transform was applied to get the data in the right format:
+
+```python
+def create_encoder_decoder(all_text):
+    chars = sorted(set(all_text))
+    char_to_int = dict((c, i + 1) for i, c in enumerate(chars))
+    int_to_char = dict((i + 1, c) for i, c in enumerate(chars))
+    return char_to_int, int_to_char
+
+
+def encode_string(line, char_to_int, l):
+    z = np.zeros(l)
+    z[0:len(line)] = [char_to_int[c] for c in line]
+    return z
+
+
+def encode_strings(lines, char_to_int, l):
+    return np.array([encode_string(line, char_to_int, l) for line in lines])
+```
+
+This was applied like so:
+
+```python
+X = encoders.encode_strings(normalized_tweets, char_to_int, max_tweet_len)
+X_train, X_test, y_train, y_test = train_test_split(X, y, 
+                                                    test_size=0.2, 
+                                                    random_state=42)
+```
 
 ### Implementation
 In this section, the process for which metrics, algorithms, and techniques that you implemented for the given data will need to be clearly documented. It should be abundantly clear how the implementation was carried out, and discussion should be made regarding any complications that occurred during this process. Questions to ask yourself when writing this section:
