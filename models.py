@@ -10,7 +10,7 @@ import numpy as np
 from time import time
 import seaborn as sn
 from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score, confusion_matrix
-
+import plot_confusion_matrix
 
 def plot_results(y_test, predictions):
     objects = ('Accuracy', 'Precision', 'Recall', 'F1')
@@ -27,10 +27,16 @@ def plot_results(y_test, predictions):
     plt.title('Baseline Performance Metrics')
     plt.show()
 
-    sn.heatmap(cm, annot=True)
+    plt.rcParams["figure.figsize"] = (7,7)
+    classes=np.array(['D (0)', 'R (1)'])
+    plot_confusion_matrix.plot_confusion_matrix(y_test.astype(int), predictions.astype(int), 
+                                                classes=classes,
+                                                title='Confusion matrix')
     plt.show()
-
-    sn.heatmap(cm / cm.sum(), annot=True)
+    plot_confusion_matrix.plot_confusion_matrix(y_test.astype(int), predictions.astype(int), 
+                                                classes=classes, 
+                                                normalize=True,
+                                                title='Normalized confusion matrix')
     plt.show()
 
     return performance, cm
@@ -88,7 +94,7 @@ def model2(input_length):
 # Round 3 - Use character embedding
 # https://keras.io/getting-started/functional-api-guide/
 def model3(vocabulary_size, input_length):
-    """A convolutional network with no embeddings."""
+    """A convolutional network with character embeddings."""
     input_layer = Input(shape=(input_length,))
     x = Embedding(output_dim=256, input_dim=vocabulary_size, input_length=input_length)(input_layer)
     x = Conv1D(256, kernel_size=4, activation='relu')(x)
@@ -103,7 +109,7 @@ def model3(vocabulary_size, input_length):
 
 
 def model4(vocabulary_size, input_length):
-    """A convolutional network with no embeddings."""
+    """A convolutional network with character embeddings."""
     input_layer = Input(shape=(input_length,))
     x = Embedding(output_dim=256, input_dim=vocabulary_size, input_length=input_length)(input_layer)
     x = Conv1D(256, kernel_size=4, activation='relu')(x)
@@ -121,6 +127,7 @@ def model4(vocabulary_size, input_length):
 
 
 def model5(vocabulary_size, input_length):
+    """Embeddings followed by 3 Conv/Max Pooling layers"""
     input_layer = Input(shape=(input_length,))
     x = Embedding(output_dim=256, input_dim=vocabulary_size, input_length=input_length)(input_layer)
     x = Conv1D(64, kernel_size=4, activation='relu')(x)
@@ -168,6 +175,23 @@ def model7(vocabulary_size, max_tweet_len):
     optimizer = Adam(lr=0.0003)
     model.compile(loss='categorical_crossentropy', optimizer=optimizer)
     return 'word-embedding1.hdf5', model
+
+
+def model8(vocabulary_size, max_tweet_len):
+    input_layer = Input(shape=(max_tweet_len,))
+    x = Embedding(output_dim=100, input_dim=vocabulary_size, input_length=max_tweet_len)(input_layer)
+    x = Conv1D(128, kernel_size=4, activation='relu')(x)
+    x = Dropout(0.2)(x)
+    x = MaxPooling1D(pool_size=2)(x)
+    x = Conv1D(64, kernel_size=4, activation='relu')(x)
+    x = Dropout(0.2)(x)
+    x = MaxPooling1D(pool_size=2)(x)
+    x = Flatten()(x)
+    x = Dense(2, activation='softmax')(x)
+    model = Model(input_layer, x)
+    optimizer = Adam(lr=0.0003)
+    model.compile(loss='categorical_crossentropy', optimizer=optimizer)
+    return 'word-embedding2.hdf5', model
 
 
 def model9(vocabulary_size, input_length):

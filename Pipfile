@@ -15,6 +15,7 @@ tensorflow = "*"
 more-itertools = "*"
 seaborn = "*"
 jupyter = "*"
+jupyterlab = "*"
 
 [requires]
 python_version = "3.7"

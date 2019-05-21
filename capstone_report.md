@@ -32,7 +32,7 @@ The problem I solved is classification of the author of a tweet into one of the 
 The dataset I trained on is sourced such that I know beforehand the party of the tweet. This can be broken up into testing and training sets to measure goodness of model fit.
 
 ### Metrics
-As all data has is already tagged, it is appropriate to use precision, recall, accuracy, f1 score, and a confusion matrix to evaluate the quality of my solution.
+As all data is already tagged, it is appropriate to use precision, recall, accuracy, f1 score, and a confusion matrix to evaluate the quality of my solution.
 
 ## II. Analysis
 
@@ -62,7 +62,7 @@ As can be seen in the below image, the number of tweets is fairly evenly split b
 
 <img src="image1.png" alt="breakdown" width="400" class="center"/>
 
-Futhermore, the number of original tweets is fairly high compared to the number of retweets. It is possible that a retweet might cause data duplication or be something that doesn't express the original opinion of the retweeter, but I am going to assume that if a tweet is repeated by an individual then they agree with it.
+Futhermore, the number of original tweets is fairly high compared to the number of retweets. It is possible that a retweet might cause data duplication or be something that doesn't express the original opinion of the retweeter, but I am going to assume that if a tweet is repeated by an individual then they agree with the views expressed in the original  tweet.
 
 <img src="image2.png" alt="breakdown" width="400" class="center"/>
 
@@ -94,11 +94,30 @@ Since this is a fairly evenly split dataset and there is no preference for precs
 The goal of the remainder of this project was to compare the above model with several neural network architectures to see if the networks could be tuned to give better overall performance, with accuracy being the most interesting metric.
 
 The following networks were tried:
+
 1. A 1D Convolutional Network
 2. A 1D Convolutional Network with dropout layers added to prevent overfitting
-3. A Character Embedding Layer followed by a Convolutional Layer
-4. A Character Embedding Layer followed by two Convolutional Layers
-5. A Character Embedding Layer followed by three Convolutional Layers. This trial was meant to investigate if network depth did a better job of generalizing than network width.
+3. A Character Embedding Layer (dimension 256) followed by a Convolutional Layer with 256 filters.
+4. A Character Embedding Layer (dimension 256) followed by two Convolutional Layers with 256 then 128 filters.
+5. A Character Embedding Layer (dimension 256) followed by three Convolutional Layers with 64, 32, then 16 filters. A 512 unit Dense Layer followed the Convolutional Layers. This trial was meant to investigate if network depth did a better job of generalizing than network width.
+6. A Character Embedding Layer (dimension 32) followed by a 2 unit LSTM. This was meant to see if a smaller network with different layer types would perform differently.
+7. A Word Embedding Layer (dimension 100) followed by two Convolutional Layers (128 and 64 filters).
+8. The same architecture as network 7, but with a different strategy for generating the vocabulary.
+9. A Characer Embedding Layer (dimension 64) followed by two LSTM layers of dimension 64. This was done to see if more "memory" would assist in a better fit.
+
+All models can be found [here](https://github.com/markbastian/capstone) in notebooks starting with the model number (e.g. 1_political_party_classifier.ipynb for Architecture 1).
+
+All Convolutional Layers are followed by a Max Pooling layer with a pool size of 2. Each of the above networks was completed with a 2 element Dense layer (one for each final category) with softmax activation.
+
+These different ideas were inspired by many different blog posts, including:
+
+* [How to Use Word Embedding Layers for Deep Learning with Keras](https://machinelearningmastery.com/use-word-embedding-layers-deep-learning-keras/)
+* [What Are Word Embeddings for Text?](https://machinelearningmastery.com/what-are-word-embeddings/)
+* [How to Develop a Word Embedding Model for Predicting Movie Review Sentiment
+](https://machinelearningmastery.com/develop-word-embedding-model-predicting-movie-review-sentiment/)
+* [Embed, encode, attend, predict: The new deep learning formula for state-of-the-art NLP models](https://explosion.ai/blog/deep-learning-formula-nlp)
+* [How to Develop Word Embeddings in Python with Gensim](https://machinelearningmastery.com/develop-word-embeddings-python-gensim/)
+* [Stacked Long Short-Term Memory Networks](https://machinelearningmastery.com/stacked-long-short-term-memory-networks/)
 
 ### Data Preprocessing
 For all character-level encodings, the following transform was applied to get the data in the right format:
@@ -130,46 +149,183 @@ X_train, X_test, y_train, y_test = train_test_split(X, y,
                                                     random_state=42)
 ```
 
+For the first word embedding architecture (Architecure 7, above), the following additional transformations were used to encode the words:
+
+```python
+cv = CountVectorizer(stop_words='english', strip_accents='ascii')
+bag_of_words = cv.fit_transform([re.sub(r'https?://[^\s]+', '', tweet) for tweet in raw_tweets])
+
+vocab = {}
+for feature, freq in zip(cv.get_feature_names(), bag_of_words.sum(axis=0).tolist()[0]):
+    if freq > 10:
+        vocab[feature] = freq
+
+vocabulary = list(vocab.keys())
+vocabulary_size = len(vocabulary) + 1
+
+word_to_int = {word: i + 1 for i, word in enumerate(vocabulary)}
+int_to_word = {i + 1: word for i, word in enumerate(vocabulary)}
+
+encoded_tweets =\
+    [[word_to_int.get(word, 0) for word in word_tokenize(re.sub(r'https?://[^\s]+', '', tweet).lower())
+      if word in word_to_int]
+     for tweet in raw_tweets]
+```
+
+For Architecture 8, the following word encoding was used:
+
+```python
+def tokenize_tweet(s):
+    s = s.lower()
+    s = re.sub(r'https?://[^\s]+', '', s)
+    s = re.sub(r'[^A-Za-z\s$#@0-9]+', '', s)
+    s = re.sub(r'\s+', ' ', s)
+    return [tok for tok in s.strip().split(' ') if tok not in english_stopwords]
+    
+tokenized_tweets = [tokenize_tweet(tweet) for tweet in raw_tweets]
+
+vocab = {}
+for toks in tokenized_tweets:
+    for tok in toks:
+        if tok in vocab:
+            vocab[tok] += 1
+        else:
+            vocab[tok] = 1
+            
+vocab = {k:v for k,v in vocab.items() if v > 10}
+
+vocabulary = list(vocab.keys())
+vocabulary_size = len(vocabulary) + 1
+
+word_to_int = {word: i + 1 for i, word in enumerate(vocabulary)}
+int_to_word = {i + 1: word for i, word in enumerate(vocabulary)}
+
+encoded_tweets =\
+    [[word_to_int.get(tok, 0) for tok in toks if tok in word_to_int]
+     for toks in tokenized_tweets]
+```
+
+This second encoding used my own tokenizer in which I removed urls and emojis, but kept hashtags and 'at' targets (e.g. @soandso). This was done to see if perhaps there was any significance to keeping those items in the vocabulary.
+
 ### Implementation
-In this section, the process for which metrics, algorithms, and techniques that you implemented for the given data will need to be clearly documented. It should be abundantly clear how the implementation was carried out, and discussion should be made regarding any complications that occurred during this process. Questions to ask yourself when writing this section:
-- _Is it made clear how the algorithms and techniques were implemented with the given datasets or input data?_
-- _Were there any complications with the original metrics or techniques that required changing prior to acquiring a solution?_
-- _Was there any part of the coding process (e.g., writing complicated functions) that should be documented?_
+For each architecture, the networks were run for at least 100 epochs and weights were saved if loss improved. Due to the challenges of keeping track of the number of runs for long time periods on local hardware (or sometimes using AWS instances) the number of specific epochs were not tracked specifically. Generally, however, losses were at a minimal or near minimal state after this time period and rarely showed additional improvement with further iteration.
+
+The code shown above was used for each architecture and models were put in a models.py file so that most notebooks have a section that loads the files and is then generally followed by several common code blocks.
+
+First, the models are loaded from models.py:
+
+```python
+# note that the model number (e.g. model5) would change per notebook
+filepath, model = models.model5(len(char_to_int) + 1, max_tweet_len)
+if filepath in os.listdir():
+    model.load_weights(filepath)
+model.summary()
+```
+
+Next, training was done using a common function:
+
+```python
+def train(X_train, y_train, model, filepath, num_epochs=100, batch_size=1000):
+    checkpoint = ModelCheckpoint(filepath, monitor='loss', verbose=1, save_best_only=True, mode='min')
+    tensorboard = TensorBoard(log_dir="logs/{}".format(time()))
+    callbacks_list = [checkpoint, tensorboard]
+    model.fit(X_train,
+              np_utils.to_categorical(y_train),
+              epochs=num_epochs,
+              batch_size=batch_size,
+              callbacks=callbacks_list)
+```
+This training function would be called several times if convergence was not achieved. Generally losses did not improve with most models after 200 epochs.
+
+Finally, results were computed and plotted as follows:
+
+```python
+predictions = np.argmax(model.predict(X_test), axis=1)
+
+metrics, confusion_matrix = models.plot_results(y_test, predictions)
+(accuracy, precision, recall, f1) = metrics
+print('Accuracy: %s' % accuracy)
+print('Precision: %s' % precision)
+print('Recall: %s' % recall)
+print('F1: %s' % f1)
+```
+
+`plot_results` provided a common set of results as computed here:
+
+```python
+def plot_results(y_test, predictions):
+    objects = ('Accuracy', 'Precision', 'Recall', 'F1')
+    y_pos = np.arange(len(objects))
+    performance = [accuracy_score(y_test, predictions),
+                   precision_score(y_test, predictions),
+                   recall_score(y_test, predictions),
+                   f1_score(y_test, predictions)]
+    cm = confusion_matrix(y_test, predictions)
+
+    plt.bar(y_pos, performance, align='center', alpha=0.5)
+    plt.xticks(y_pos, objects)
+    plt.ylabel('Score')
+    plt.title('Baseline Performance Metrics')
+    plt.show()
+
+    plt.rcParams["figure.figsize"] = (7,7)
+    classes=np.array(['D (0)', 'R (1)'])
+    plot_confusion_matrix.plot_confusion_matrix(y_test.astype(int), predictions.astype(int), 
+                                                classes=classes,
+                                                title='Confusion matrix')
+    plt.show()
+    # This is a variation of the example found online at
+    # https://scikit-learn.org/stable/auto_examples/model_selection/plot_confusion_matrix.html
+    plot_confusion_matrix.plot_confusion_matrix(y_test.astype(int), predictions.astype(int), 
+                                                classes=classes, 
+                                                normalize=True,
+                                                title='Normalized confusion matrix')
+    plt.show()
+
+    return performance, cm
+```
+
+Complete listings of all code and implementations can be found at [https://github.com/markbastian/capstone](https://github.com/markbastian/capstone).
 
 ### Refinement
-In this section, you will need to discuss the process of improvement you made upon the algorithms and techniques you used in your implementation. For example, adjusting parameters for certain models to acquire improved solutions would fall under the refinement category. Your initial and final solutions should be reported, as well as any significant intermediate results as necessary. Questions to ask yourself when writing this section:
-- _Has an initial solution been found and clearly reported?_
-- _Is the process of improvement clearly documented, such as what techniques were used?_
-- _Are intermediate and final solutions clearly reported as the process is improved?_
+The various architectures 1-9 above were each created as a follow on to the previous architecture in an attempt to explore what could be improved or attempted as a next experiment. In many cases, the follow on architecure was "going wider" by expanding the number of units or "going deeper" by adding additional layers (but halving the units or filters).
 
 
 ## IV. Results
-_(approx. 2-3 pages)_
 
 ### Model Evaluation and Validation
-In this section, the final model and any supporting qualities should be evaluated in detail. It should be clear how the final model was derived and why this model was chosen. In addition, some type of analysis should be used to validate the robustness of this model and its solution, such as manipulating the input data or environment to see how the model’s solution is affected (this is called sensitivity analysis). Questions to ask yourself when writing this section:
-- _Is the final model reasonable and aligning with solution expectations? Are the final parameters of the model appropriate?_
-- _Has the final model been tested with various inputs to evaluate whether the model generalizes well to unseen data?_
-- _Is the model robust enough for the problem? Do small perturbations (changes) in training data or the input space greatly affect the results?_
-- _Can results found from the model be trusted?_
+As was stated previously, accuracy is the driving metric for this study as there is no preference for precision or recall and the data is divided fairly evenly. A summary of the architectures are listed here, sorted by accuracy.
+
+<img src="image5.png" alt="breakdown" width="400" class="center"/>
+
+A few interesting observations:
+
+* The initial baseline model (A Naive Bayes Classifier) outperformed the other models.
+* Word embeddings were the next best models.
+* The next group used character embeddings with 2 convolutional layers.
+* With the exception of the "complicated" architectures, a simple deep network with no embeddings did worse than the other architectures.
+* Architectures 5 and 9 fared worst. These both are characterized by having more deep layers than their counterparts (3 vs. 2 Convolutional Layers or 2 large LSTM layers vs. 1 smaller LSTM layer). In fact, architectue 9 classified all tweets as Republican, so obviously did not learn much at all.
+
+All of these models were evaluated using the 20% split testing data, so I have a high degree of confidence in their results.
 
 ### Justification
-In this section, your model’s final solution and its results should be compared to the benchmark you established earlier in the project using some type of statistical analysis. You should also justify whether these results and the solution are significant enough to have solved the problem posed in the project. Questions to ask yourself when writing this section:
-- _Are the final results found stronger than the benchmark result reported earlier?_
-- _Have you thoroughly analyzed and discussed the final solution?_
-- _Is the final solution significant enough to have solved the problem?_
+While I am a bit disappointed that none of the architectures beat a basic Naive Bayes Classifier, the "intent for this project was two solve the problem using two categories of algorithms and compare the results," and not to explicitly beat the Naive Bayes Classifier. The thing I feel needs the most defense is the final set of architectures used. I wanted to try architectures with character embeddings, word embeddings, LSTMs, and CNNs and there are effectively an infinte number of combinations of layers, activation functions, and hyperparameters (e.g. units or filters) that can be chosen from. I felt that the architectures used were fairly representative of basic architectures described online and in the class.
 
 
 ## V. Conclusion
 _(approx. 1-2 pages)_
 
 ### Free-Form Visualization
+What to do??????
+
 In this section, you will need to provide some form of visualization that emphasizes an important quality about the project. It is much more free-form, but should reasonably support a significant result or characteristic about the problem that you want to discuss. Questions to ask yourself when writing this section:
 - _Have you visualized a relevant or important quality about the problem, dataset, input data, or results?_
 - _Is the visualization thoroughly analyzed and discussed?_
 - _If a plot is provided, are the axes, title, and datum clearly defined?_
 
 ### Reflection
+In this project, several architectures were chosen and evaluated.
+
 In this section, you will summarize the entire end-to-end problem solution and discuss one or two particular aspects of the project you found interesting or difficult. You are expected to reflect on the project as a whole to show that you have a firm understanding of the entire process employed in your work. Questions to ask yourself when writing this section:
 - _Have you thoroughly summarized the entire process you used for this project?_
 - _Were there any interesting aspects of the project?_
