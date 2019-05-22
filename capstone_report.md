@@ -1,7 +1,7 @@
 # Machine Learning Engineer Nanodegree
 ## Capstone Project
 Mark Bastian  
-December 31st, 2050
+May 21st, 2019
 
 #Political Tweet Classification
 
@@ -316,36 +316,24 @@ While I am a bit disappointed that none of the architectures beat a basic Naive 
 _(approx. 1-2 pages)_
 
 ### Free-Form Visualization
-What to do??????
+The best way to capture the results of this study is to look at the various metrics for each model. As stated earlier, Accuracy is the metric that is most important as the samples are split fairly evenly and there is no preference for precision or recall.
 
-In this section, you will need to provide some form of visualization that emphasizes an important quality about the project. It is much more free-form, but should reasonably support a significant result or characteristic about the problem that you want to discuss. Questions to ask yourself when writing this section:
-- _Have you visualized a relevant or important quality about the problem, dataset, input data, or results?_
-- _Is the visualization thoroughly analyzed and discussed?_
-- _If a plot is provided, are the axes, title, and datum clearly defined?_
+<img src="image6.png" alt="breakdown" width="400" class="center"/>
+
+In general, word embeddings seem to be the best neural models after a Naive Bayes Classifier.
 
 ### Reflection
-In this project, several architectures were chosen and evaluated.
+This project resulted in a pipeline that created normalized text input in a small number of formats depending on the model used, trained a set of models on this input, and then used a common reporting mechanism for all of the results.
 
-In this section, you will summarize the entire end-to-end problem solution and discuss one or two particular aspects of the project you found interesting or difficult. You are expected to reflect on the project as a whole to show that you have a firm understanding of the entire process employed in your work. Questions to ask yourself when writing this section:
-- _Have you thoroughly summarized the entire process you used for this project?_
-- _Were there any interesting aspects of the project?_
-- _Were there any difficult aspects of the project?_
-- _Does the final model and solution fit your expectations for the problem, and should it be used in a general setting to solve these types of problems?_
+Several aspects of the results that I found interesting were:
+
+* What I found most interesting about this study is that the neural net based approaches, especially word and character encodings, did not perform as well as a basic Bayes Classifier. However, I think this shows one of the potential strengths and weaknesses of using deep networks as a solution. I believe that with the right tuning and hyperparameters it is possible to do better than the Bayes Classifier. However, this requires a lot of patience, trial and error, intuition, and skill.
+* On a related note, one thing that I found particularly challenging was hyperparameter tuning for deep networks. There are a massive number of combinations that can be tried and many infrastructures (e.g. LSTMs) can take a very long time to train.
+* Embeddings, particularly word embeddings, did very well.
 
 ### Improvement
-In this section, you will need to provide discussion as to how one aspect of the implementation you designed could be improved. As an example, consider ways your implementation can be made more general, and what would need to be modified. You do not need to make this improvement, but the potential solutions resulting from these changes are considered and compared/contrasted to your current solution. Questions to ask yourself when writing this section:
-- _Are there further improvements that could be made on the algorithms or techniques you used in this project?_
-- _Were there algorithms or techniques you researched that you did not know how to implement, but would consider using if you knew how?_
-- _If you used your final solution as the new benchmark, do you think an even better solution exists?_
+Given the general observations I made on the various models I tried, I thing the following are potential areas for improvement:
 
------------
-
-**Before submitting, ask yourself. . .**
-
-- Does the project report you’ve written follow a well-organized structure similar to that of the project template?
-- Is each section (particularly **Analysis** and **Methodology**) written in a clear, concise and specific fashion? Are there any ambiguous terms or phrases that need clarification?
-- Would the intended audience of your project be able to understand your analysis, methods, and results?
-- Have you properly proof-read your project report to assure there are minimal grammatical and spelling mistakes?
-- Are all the resources used for this project correctly cited and referenced?
-- Is the code that implements your solution easily readable and properly commented?
-- Does the code execute without error and produce results similar to those reported?
+* Do more investigation and work with embedding layers. In particular, I would try two approaches:
+  * Try some off the shelf pre-trained models such as word2vec or Amazon's new [Object2Vec model](https://aws.amazon.com/blogs/machine-learning/introduction-to-amazon-sagemaker-object2vec/).
+  * Try different permuations of the solutions that did work.
