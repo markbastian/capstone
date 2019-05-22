@@ -1,7 +1,9 @@
+<script type="text/javascript" src="http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+
 # Machine Learning Engineer Nanodegree
 ## Capstone Project
 Mark Bastian  
-May 21st, 2019
+May 22nd, 2019
 
 #Political Tweet Classification
 
@@ -31,8 +33,37 @@ The problem I solved is classification of the author of a tweet into one of the 
 
 The dataset I trained on is sourced such that I know beforehand the party of the tweet. This can be broken up into testing and training sets to measure goodness of model fit.
 
+As I did not know exactly what model would do best in this situation, my approach was to use a simple Naive Bayes Classifier as a baseline model and then try several different neural architectures to see if any stood out as being better than the Naive Bayes Classifier or at least had potential to do well.
+
 ### Metrics
 As all data is already tagged, it is appropriate to use precision, recall, accuracy, f1 score, and a confusion matrix to evaluate the quality of my solution.
+
+These metrics are defined as:
+
+\\[Accuracy = \frac{True\ Positives + True\ Negatives}{True\ Positives + True\ Negatives + False\ Positives + False\ Negatives}\\]
+
+\\[Precision = \frac{True\ Positives}{True\ Positives + False\ Positives}\\]
+
+\\[Recall = \frac{True\ Positives}{True\ Positives + False\ Negatives}\\]
+
+\\[F1 = \frac{2 \times Precision \times Recall}{Precision + Recall}\\]
+
+Intutively, _Accuracy_ says "How did I do at correctly predicting a category over my entire population?", _Precision_ says "If I stated something belongs to a category, how likely am I to be correct?," _Recall_ says "If something belongs to a category, how likely am I to find it?," and the _F1_ score is a metric that pulls towards the worst of the two previous scores, so you must do well at both for a high F1 score.
+
+This can be viewed with a Confusion Matrix as well, where D(0) and R(1) correspond to Democrat or Republican:
+
+|| Predicted D(0) | Predicted R(1) |
+|:--------:|:--------:|:--------:|
+|Actual D(0)| True D(0) | False R(1) |
+|Actual R(1)| False D(0) | True R(1) |
+
+For skewed populations it is easy to see that Accuracy is a poor metric as any model that favors that larger population will have high accuracy. In our case, the number of tweets is fairly evenly divided between the two parties (Democrat=42068, Republican=44392), so accuracy should be a good metric here.
+
+If there is high risk or regret associated with a misclassification (I said you were a Democrat, but you were really a Republican) then we should favor models with high Precision. In our case, there is no higher penalty for one type of misclassification over another, so Precision isn't as important a metric for us.
+
+If there is high risk or regret associated with not finding all of a given category (I was trying to find all of the Democrats, but missed some) then we should favor high Recall models. Again, there is no reason to favor one category or another in this case, so Recall is not as important either.
+
+As Accuracy is more important than Precision or Recall in this case, F1 is also not going to be as important since it is a weighted score of our two less important metrics.
 
 ## II. Analysis
 
@@ -40,6 +71,13 @@ As all data is already tagged, it is appropriate to use precision, recall, accur
 I used the Democrat Vs. Republican Tweets dataset [found here](https://www.kaggle.com/kapastor/democratvsrepublicantweets). 
 
 This dataset provides 86,460 tweets divided roughly evenly (over 42,000 tweets per party) and is sufficiently large to produce sizeable testing and training sets. As the authors are all politicans it is implicitly categorized by the author's political affiliation.
+
+Here is the breakdown of tweets by party:
+
+| Statistic | Value |
+|:--------:|:--------:|
+|Democrat Tweets| 42068 |
+|Republican Tweets| 44392 |
 
 This was loaded using the following code:
 
@@ -57,6 +95,10 @@ X_train, X_test, y_train, y_test = train_test_split(raw_tweets,
 ```
 The above code listing was used for all models.
 
+Intuitively, it would make sense for longer tweets to have more information, as there are more words to give context to the tweet. Based on this next plot, the vast majority of tweets are greater than 100 characters and most are centered at 150 characters, which is good.
+
+<img src="tweet_length_freq.png" alt="breakdown" width="400" class="center"/>
+
 ### Exploratory Visualization
 As can be seen in the below image, the number of tweets is fairly evenly split between parties (Republican=44392, Democrat=42068).
 
@@ -68,6 +110,17 @@ Futhermore, the number of original tweets is fairly high compared to the number 
 
 ### Algorithms and Techniques
 My intent for this project was two solve the problem using two categories of algorithms and compare the results. The first would be a Naive Bayes Classifier and the second would be a Neural Network. The specifics of the latter were left open in the proposal as there are a lot of different potential architectures and I wanted to investigate several. I ended up trying our several techniques, including word and character embedding layers, 1D convolutional networks, and LSTM layers.
+
+Key algorithms I tried are:
+
+* Naive Bayes Classification using the sklearn MultinomialNB class. From the [documentation](https://scikit-learn.org/stable/modules/generated/sklearn.naive_bayes.MultinomialNB.html#sklearn.naive_bayes.MultinomialNB), "The multinomial Naive Bayes classifier is suitable for classification with discrete features (e.g., word counts for text classification). The multinomial distribution normally requires integer feature counts. However, in practice, fractional counts such as tf-idf may also work." Naive Bayes is a simple algorithm that computes the probability that something belongs to a class given the presence of the words in the item to be classified. This does not take into account any aspect of word ordering or the sentiment of a sentence.
+* Deep Neural Networks: In all models except for the Naive Bayes Classifer, some form of neural network is used. The "Deep" aspect of the network is simply the fact that hidden layers are present in the network that must be trained. All input is in the form of a vector whose values are multiplied and summed then passed through an activation function for node of each layer in the network. There are a large number of layer types and I will highlight some of the main ones used after this.
+* Embeddings (Word and Character Level): Embedding layers take a sparse input (one hot encoded words or characters) and map them into dense vectors of data. This can give context to words or character sequences and reduce the number of input parameters since you are going from a sparse to a dense representation. An excellent explanation of word embeddings can be found at [The Illustrated Word2vec](https://jalammar.github.io/illustrated-word2vec/).
+* Dense Layers: In a "traditional" deep network, many fully connected layers are used. These do not have any concept of spatial or temporal context or connectivity.
+* Convolutional Layers: Convolution Layers consume arrays of data and use kernels rather than scalar weights to transform their input. These kernels can be used to detect spatial features in input. For textual data, a 1D Convolutional Layer can be used to learn relationships between words or characters. For example, encoding "I am happy" as [1,2,3] vs. "I am not happy" as [1,2,4,3] contains spatial relationships that can be learned with a kernel such that a network could determine the sentiment of happiness vs. unhappiness. Recently, there has been a lot of work in using CNNs for text despite not having the "memory" of LSTMs because CNNs are so much faster to train. For example, this [blog post](https://medium.com/@TalPerry/convolutional-methods-for-text-d5260fd5675f) discuses the pros and cons of CNNs vs. RNNs at length, with the conclusion that CNNs work well for text classification and are much faster to train.
+* LSTM Layers: LSTMs, or Long short-term memory layers, are recurrent layers that maintain a short term "memory" internally and are appropriate for learning sequences of data, such as word sequences in sentences. Perhaps the best resource for gaining intuition into LSTMs is [Understanding LSTM Networks](http://colah.github.io/posts/2015-08-Understanding-LSTMs/). One of the challenges of LSTMs is that due to their recurrent design, they cannot be trained in parallel, so training can take a very long time. For this reason, I favored architectures with convolutional layers in this project.
+
+
 
 ### Benchmark
 My baseline model was a simple Naive Bayes Classifier created using the following pipeline:
@@ -105,7 +158,29 @@ The following networks were tried:
 8. The same architecture as network 7, but with a different strategy for generating the vocabulary.
 9. A Characer Embedding Layer (dimension 64) followed by two LSTM layers of dimension 64. This was done to see if more "memory" would assist in a better fit.
 
-All models can be found [here](https://github.com/markbastian/capstone) in notebooks starting with the model number (e.g. 1_political_party_classifier.ipynb for Architecture 1).
+All solutions can be found [here](https://github.com/markbastian/capstone) in notebooks starting with the model number (e.g. 1_political_party_classifier.ipynb for Architecture 1).
+
+The models themselves are located in the [models](./models.py) file and are named by their model number.
+
+For example, here is the listing for model1:
+
+```python
+def model1(input_length):
+    """A convolutional network with no embeddings."""
+    input_layer = Input(shape=(input_length,1))
+    x = Conv1D(256, kernel_size=4, activation='relu')(input_layer)
+    x = MaxPooling1D(pool_size=2)(x)
+    x = Conv1D(64, kernel_size=4, activation='relu')(x)
+    x = MaxPooling1D(pool_size=2)(x)
+    x = Conv1D(32, kernel_size=4, activation='relu')(x)
+    x = MaxPooling1D(pool_size=2)(x)
+    x = Flatten()(x)
+    x = Dense(2, activation='softmax')(x)
+    model = Model(input_layer, x)
+    optimizer = Adam(lr=0.0003)
+    model.compile(loss='binary_crossentropy', optimizer=optimizer)
+    return 'cnn-weights-0.0337.hdf5', model
+```
 
 All Convolutional Layers are followed by a Max Pooling layer with a pool size of 2. Each of the above networks was completed with a 2 element Dense layer (one for each final category) with softmax activation.
 
@@ -306,14 +381,15 @@ A few interesting observations:
 * With the exception of the "complicated" architectures, a simple deep network with no embeddings did worse than the other architectures.
 * Architectures 5 and 9 fared worst. These both are characterized by having more deep layers than their counterparts (3 vs. 2 Convolutional Layers or 2 large LSTM layers vs. 1 smaller LSTM layer). In fact, architectue 9 classified all tweets as Republican, so obviously did not learn much at all.
 
-All of these models were evaluated using the 20% split testing data, so I have a high degree of confidence in their results.
+All of these models were evaluated using 20% of the original data that was held out for testing.
+
+Regarding robustness, the Naive Bayes Classifier uses standard word counts so as long as the vocabulary of a given tweet didn't change dramatically and is of a political nature, I would expect consistent performance. Although not as good as the Naive Bayes classifier, the word embedded models do limit input via their encodings to an existing vocabulary of 8736 words and remove outliers like urls that will vary all the time and probably don't contain useful information. One potential concern might be how much of the results are based on who the target of a tweet is or on a particular hashtag. For example, if a particular politician did a lot of tweeting about a current hot button issue and that that politician left office or the issue cooled off the model might not respond as favorably to newer people or subjects. This is discussed more on the conclusions.
 
 ### Justification
 While I am a bit disappointed that none of the architectures beat a basic Naive Bayes Classifier, the "intent for this project was two solve the problem using two categories of algorithms and compare the results," and not to explicitly beat the Naive Bayes Classifier. The thing I feel needs the most defense is the final set of architectures used. I wanted to try architectures with character embeddings, word embeddings, LSTMs, and CNNs and there are effectively an infinte number of combinations of layers, activation functions, and hyperparameters (e.g. units or filters) that can be chosen from. I felt that the architectures used were fairly representative of basic architectures described online and in the class.
 
 
 ## V. Conclusion
-_(approx. 1-2 pages)_
 
 ### Free-Form Visualization
 The best way to capture the results of this study is to look at the various metrics for each model. As stated earlier, Accuracy is the metric that is most important as the samples are split fairly evenly and there is no preference for precision or recall.
@@ -337,3 +413,4 @@ Given the general observations I made on the various models I tried, I thing the
 * Do more investigation and work with embedding layers. In particular, I would try two approaches:
   * Try some off the shelf pre-trained models such as word2vec or Amazon's new [Object2Vec model](https://aws.amazon.com/blogs/machine-learning/introduction-to-amazon-sagemaker-object2vec/).
   * Try different permuations of the solutions that did work.
+  * Investigate the sensitivity of the model to tweet targets (e.g. @soandso) and hashtag topics. If the model is highly suceptible to those items, then a newer model could remove them or do continuous learning from a data feed to always stay current.

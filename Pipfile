@@ -16,6 +16,7 @@ more-itertools = "*"
 seaborn = "*"
 jupyter = "*"
 jupyterlab = "*"
+wordcloud = "*"
 
 [requires]
 python_version = "3.7"
